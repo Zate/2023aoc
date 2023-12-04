@@ -20,11 +20,16 @@ type partNum struct {
 	hasSymbol bool
 }
 
-// type symbol struct {
-// 	x      int
-// 	y      int
-// 	symbol rune
-// }
+type symbol struct {
+	x       int
+	y       int
+	numbers []int
+}
+
+type cell struct {
+	x int
+	y int
+}
 
 // day3Cmd represents the day3 command
 var (
@@ -41,7 +46,7 @@ to quickly create a Cobra application.`,
 			day3(cmd, args)
 		},
 	}
-	// schematic [][]rune
+	Symbols map[cell]symbol
 )
 
 func init() {
@@ -57,6 +62,7 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// day3Cmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	Symbols = make(map[cell]symbol)
 }
 
 func day3(cmd *cobra.Command, args []string) {
@@ -98,29 +104,41 @@ func day3(cmd *cobra.Command, args []string) {
 		}
 		y++
 	}
-	// // choose 2 random numbers between 1 and 140 and display the grid at those coordinates
-	// h := 0 //rand.Intn(height)
-	// w := 9 //rand.Intn(width)
-	// fmt.Printf("Char at %d, %d: %s\n", h, w, string(grid[h][w]))
-	// fmt.Printf("Height: %d, Width: %d\n", height, width)
+
 	parts := findPartNumbers(grid)
-	fmt.Println(len(parts))
+
+	total := 0
+	for _, part := range parts {
+		if part.hasSymbol {
+			total += part.number
+		}
+	}
+	fmt.Println(total)
+	total_part1 := 0
+	for _, symbol := range Symbols {
+		// multuply the numbers together
+		total2 := 1
+		if len(symbol.numbers) >= 2 {
+
+			for _, num := range symbol.numbers {
+				total2 *= num
+			}
+			total_part1 += total2
+		}
+
+	}
+	fmt.Println(total_part1)
+
 }
 
 func findPartNumbers(grid [][]rune) []partNum {
 	var parts []partNum
-	// var symbols []symbol
 	for y, row := range grid {
 		for x, r := range row {
 			switch r {
 			case '.':
-				// do nothing
-			// if its a number 1 to 9
-			case '1', '2', '3', '4', '5', '6', '7', '8', '9':
-				if x > 0 {
-					if isNum(grid[y][x-1]) {
-						continue
-					}
+			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+				if isNum(r) && (x == 0 || !isNum(grid[y][x-1])) {
 					newPartNum := partNum{
 						x:      x,
 						y:      y,
@@ -128,15 +146,7 @@ func findPartNumbers(grid [][]rune) []partNum {
 					}
 					parts = append(parts, newPartNum)
 				}
-
-			// if its not a number, or a ., its a symbol
 			default:
-				// newSymbol := symbol{
-				// 	x:      x,
-				// 	y:      y,
-				// 	symbol: r,
-				// }
-				// symbols = append(symbols, newSymbol)
 			}
 		}
 	}
@@ -149,7 +159,7 @@ func getPartNumberFromXY(x int, y int, grid [][]rune) int {
 	if isNum(grid[y][x]) {
 		// isnum = true
 		num += string(grid[y][x])
-		for x < len(grid[y]) && isNum(grid[y][x+1]) {
+		for x+1 < len(grid[y]) && isNum(grid[y][x+1]) {
 			num += string(grid[y][x+1])
 			x++
 		}
@@ -163,7 +173,7 @@ func getPartNumberFromXY(x int, y int, grid [][]rune) int {
 
 func isNum(r rune) bool {
 	switch r {
-	case '1', '2', '3', '4', '5', '6', '7', '8', '9':
+	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 		return true
 	default:
 		return false
@@ -173,79 +183,57 @@ func isNum(r rune) bool {
 func validatePartNums(parts []partNum, grid [][]rune) []partNum {
 	var newParts []partNum
 	for _, part := range parts {
-		// we should first validate that the run at grid[y][x] is a number
-		// for each of the runes in the number, check the surrounding runes to see if they are symbols
-		// if any are symbols, we set hasSymbol to true and break
-
-		r := grid[part.y][part.x]
-		if !isNum(r) || !(r == []rune(strconv.Itoa(part.number))[0]) {
-			// newParts = append(newParts, part)
-			continue
-		}
-		// y-1, x-1
-		if part.y == 0 || part.x == 0 {
-
-		} else if grid[part.y-1][part.x-1] != '.' && !isNum(grid[part.y-1][part.x-1]) {
-			part.hasSymbol = true
-			newParts = append(newParts, part)
-			continue
-		}
-		// y-1, x
-		if part.y == 0 {
-		} else if grid[part.y-1][part.x] != '.' && !isNum(grid[part.y-1][part.x]) {
-			part.hasSymbol = true
-			newParts = append(newParts, part)
-			continue
-		}
-		// y-1, x+1
-		if part.y == 0 || part.x == len(grid[part.y])-1 {
-		} else if grid[part.y-1][part.x+1] != '.' && !isNum(grid[part.y-1][part.x+1]) {
-			part.hasSymbol = true
-			newParts = append(newParts, part)
-			continue
-		}
-		// y, x-1
-		if part.x == 0 {
-		} else if grid[part.y][part.x-1] != '.' && !isNum(grid[part.y][part.x-1]) {
-			part.hasSymbol = true
-			newParts = append(newParts, part)
-			continue
-		}
-		// y, x+1
-		if part.x == len(grid[part.y])-1 {
-		} else if grid[part.y][part.x+1] != '.' && !isNum(grid[part.y][part.x+1]) {
-			part.hasSymbol = true
-			newParts = append(newParts, part)
-			continue
-		}
-		// y+1, x-1
-		if part.y == len(grid)-1 || part.x == 0 {
-		} else if grid[part.y+1][part.x-1] != '.' && !isNum(grid[part.y+1][part.x-1]) {
-			part.hasSymbol = true
-			newParts = append(newParts, part)
-			continue
-		}
-		// y+1, x
-		if part.y == len(grid)-1 {
-		} else if grid[part.y+1][part.x] != '.' && !isNum(grid[part.y+1][part.x]) {
-			part.hasSymbol = true
-			newParts = append(newParts, part)
-			continue
-		}
-		// y+1, x+1
-		if part.y == len(grid)-1 || part.x == len(grid[part.y])-1 {
-		} else if grid[part.y+1][part.x+1] != '.' && !isNum(grid[part.y+1][part.x+1]) {
-			part.hasSymbol = true
-			newParts = append(newParts, part)
-			continue
-		}
+		part.hasSymbol = partNumHasSymbol(part.x, part.y, part.number, grid)
 		newParts = append(newParts, part)
 	}
 	return newParts
 }
 
-func engineParts(line string) int {
-	var partNum int
+func partNumHasSymbol(x, y, num int, grid [][]rune) bool {
+	// r := grid[y][x]
+	width := len(grid[y])
+	height := len(grid)
+	allRunes := strconv.Itoa(num)
+	for _, r := range allRunes {
+		// fmt.Printf("Rune: %s\n", string(r))
+		if !isNum(r) {
+			return false
+		}
 
-	return partNum
+		dx := []int{-1, 0, 1, -1, 1, -1, 0, 1}
+		dy := []int{-1, -1, -1, 0, 0, 1, 1, 1}
+
+		for i := 0; i < 8; i++ {
+			nx, ny := x+dx[i], y+dy[i]
+			if nx < 0 || ny < 0 || nx >= width || ny >= height {
+				continue
+			}
+			// fmt.Printf("%d, %d is %s\n", ny, nx, string(grid[ny][nx]))
+			if !isNum(grid[ny][nx]) && grid[ny][nx] != '.' {
+				fmt.Printf("%d has a Symbol at %d, %d: %s\n", num, ny, nx, string(grid[ny][nx]))
+				if string(grid[ny][nx]) == "*" {
+					cell := cell{
+						x: nx,
+						y: ny,
+					}
+					if _, ok := Symbols[cell]; !ok {
+						Symbols[cell] = symbol{
+							x:       nx,
+							y:       ny,
+							numbers: []int{num},
+						}
+					} else {
+						Symbols[cell] = symbol{
+							x:       nx,
+							y:       ny,
+							numbers: append(Symbols[cell].numbers, num),
+						}
+					}
+				}
+				return true
+			}
+		}
+		x++
+	}
+	return false
 }
