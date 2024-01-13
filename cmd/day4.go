@@ -7,7 +7,9 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"math"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -83,54 +85,122 @@ func day4(cmd *cobra.Command, args []string) {
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
 	}
-	for card := range Game.cards {
-		Game.totalPoints += Game.cards[card].points
+	cardList := make(map[int]card)
+	for i, card := range Game.cards {
+		Game.totalPoints += Game.cards[i].points
+		cardList[Game.cards[i].id] = card
+
 	}
 	fmt.Printf("Total: %d\n", Game.totalPoints)
+	totalcards := processCardList(cardList)
+	fmt.Printf("Total: %d\n", totalcards)
+
+}
+
+func processCardList(c map[int]card) int {
+	totalCards := len(c)
+	processedCards := make(map[int]bool)
+	cardStats := make(map[int]int)
+	total := 0
+	iteration := 0
+	for {
+		iteration++
+		fmt.Printf("Iteration: %d\n", iteration)
+		newCardsWon := false
+		for i := 0; i < totalCards; i++ {
+			if processedCards[i] {
+				fmt.Printf("Skipping card %d\n", i)
+				continue
+			}
+			card := c[i]
+			numCards := len(card.winningNums)
+			if numCards == 0 {
+				fmt.Printf("Card %d has no winners\n", i)
+				processedCards[i] = true
+				continue
+			}
+			for j := i + 1; j < i+1+numCards && j < totalCards; j++ {
+				fmt.Printf("Card %d won by card %d\n", i, j)
+				cardStats[j]++
+				processedCards[j] = true
+				newCardsWon = true
+			}
+		}
+		fmt.Printf("newCardsWon: %v\n", newCardsWon)
+		fmt.Printf("processedCards: %v\n", processedCards)
+		if !newCardsWon {
+			break
+		}
+	}
+	for _, v := range cardStats {
+		total += v
+	}
+	return total
 }
 
 func processCard(line string) card {
 	var c card
 	cardArray := strings.Split(line, ":")
 	idArray := strings.Split(cardArray[0], " ")
-	id, err := strconv.Atoi(idArray[1])
+
+	id, err := strconv.Atoi(idArray[len(idArray)-1])
 	if err != nil {
-		fmt.Println(err)
+		pc, _, line, _ := runtime.Caller(0)
+		fmt.Printf("Error in %s[%d]: %v\n", runtime.FuncForPC(pc).Name(), line, err)
 		os.Exit(1)
 	}
 	c.id = id
 	numArray := strings.Split(cardArray[1], "|")
 	winnersArray := strings.Split(numArray[0], " ")
 	myNumbersArray := strings.Split(numArray[1], " ")
-	c.myNums = make([]int, len(myNumbersArray))
-	for i, num := range myNumbersArray {
-		c.myNums[i], err = strconv.Atoi(num)
+	c.myNums = make([]int, 0, len(myNumbersArray)) // make it with length 0 but enough capacity
+	j := 0
+	for _, num := range myNumbersArray {
+		num = strings.Trim(num, " ")
+		if num == "" {
+			continue
+		}
+		var parsedNum int
+		parsedNum, err = strconv.Atoi(num)
 		if err != nil {
-			fmt.Println(err)
+			pc, _, line, _ := runtime.Caller(0)
+			fmt.Printf("Error in %s[%d]: %v\n", runtime.FuncForPC(pc).Name(), line, err)
 			os.Exit(1)
 		}
+		c.myNums = append(c.myNums, parsedNum) // append the parsed number to the slice
+		j++
 	}
-	c.winners = make([]int, len(winnersArray))
-	for i, num := range winnersArray {
-		c.winners[i], err = strconv.Atoi(num)
+	c.winners = make([]int, 0, len(winnersArray)) // make it with length 0 but enough capacity
+	j = 0
+	for _, num := range winnersArray {
+		num = strings.Trim(num, " ")
+		if num == "" {
+			continue
+		}
+		var parsedNum int
+		parsedNum, err = strconv.Atoi(num)
 		if err != nil {
-			fmt.Println(err)
+			pc, _, line, _ := runtime.Caller(0)
+			fmt.Printf("Error in %s[%d]: %v\n", runtime.FuncForPC(pc).Name(), line, err)
 			os.Exit(1)
 		}
+		c.winners = append(c.winners, parsedNum) // append the parsed number to the slice
+		j++
 	}
-	c.winningNums = make([]int, len(c.winners))
+	c.winningNums = make([]int, 0, len(c.winners)) // make it with length 0 but enough capacity
 	for _, winner := range c.winners {
 		for _, num := range c.myNums {
 			if winner == num {
-				c.winningNums = append(c.winningNums, winner)
+				c.winningNums = append(c.winningNums, num) // append the number to the slice
+				break
 			}
 		}
 	}
-	points := 1
-	for i := 0; i < len(c.winningNums); i++ {
-		points *= 2
-	}
-	c.points = points
+	c.points = int(math.Pow(2, float64(len(c.winningNums)-1)))
+	// for i := 0; i < len(c.winningNums)-1; i++ {
+	// 	points *= 2
+	// }
+	// c.points = points
 
 	return c
 }
